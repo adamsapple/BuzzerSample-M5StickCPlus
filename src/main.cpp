@@ -5,6 +5,7 @@
 #include "argument.h"
 #include <FrameTimer.h>
 
+#include "doremi.h"
 
 const int SENSOR_HZ = 20;
 const int LED_PIN   = 10;
@@ -19,18 +20,62 @@ struct SoundParam
 const int SOUND_TIMER_ID = 1;
 //std::vector<SoundParam> soundQueue(32, {.freq=0, .duration=0});
 //std::queue<SoundParam> soundQueue;
+
+#define	TEMPO		(120)
+#define	NOTE4MS		(60*1000/TEMPO)
+#define	NOTE2MS		(NOTE4MS*2)
+#define	NOTE1MS		(NOTE2MS*2)
+#define	NOTE8MS		(NOTE4MS/2)
+#define	NOTE16MS	(NOTE8MS/2)
+#define	NOTE32MS	(NOTE16MS/2)
+#define	NOTE64MS	(NOTE16MS/2)
+#define	NOTE2PMS	(NOTE2MS+NOTE4MS)
+#define	NOTE4PMS	(NOTE4MS+NOTE8MS)
+#define	NOTE8PMS	(NOTE8MS+NOTE16MS)
+#define	NOTE16PMS	(NOTE16MS+NOTE32MS)
+#define	NOTE32PMS	(NOTE32MS+NOTE64MS)
+
+
+#define	MAKE_NOTE(f,d)	{.freq=(f) , .duration=(d)}
+
 /**
  * @brief サウンドリスト
  * 
  */
 std::vector<std::vector<SoundParam>> soundList = {
-    {{.freq=1800, .duration=40 }, {.freq=1200, .duration=60 }, {.freq=1800, .duration=40 }, {.freq=1200, .duration=60} },
-    {{.freq=1200, .duration=30 }, {.freq=900 , .duration=30 }, {.freq=600 , .duration=30 }, {.freq=300 , .duration=30}, {.freq=150 , .duration=30} },
-    {{.freq=750 , .duration=30 }, {.freq=900 , .duration=30 }, {.freq=1200, .duration=30 }, {.freq=1800, .duration=30} },
-    {{.freq=660 , .duration=60 }, {.freq=550 , .duration=40 }},
-    {{.freq=660 , .duration=400}, {.freq=440 , .duration=800}},
-    {{.freq=1200, .duration=100}, {.freq=1200, .duration=100}, {.freq=1200, .duration=100}},
-    {{.freq=1200, .duration=500}, {.freq=1800, .duration=500}, {.freq=2400, .duration=500}}
+    {MAKE_NOTE(B__6, 40 ), MAKE_NOTE(D__6, 60 ), MAKE_NOTE(B__6, 40 ), MAKE_NOTE(D__6, 60 )},
+    {MAKE_NOTE(1200, 30 ), MAKE_NOTE(900 , 30 ), MAKE_NOTE(600 , 30 ), MAKE_NOTE(300 , 30 ), MAKE_NOTE(150 , 30 )},
+    {MAKE_NOTE(750 , 30 ), MAKE_NOTE(900 , 30 ), MAKE_NOTE(1200, 30 ), MAKE_NOTE(1800, 30 )},
+    {MAKE_NOTE(660 , 60 ), MAKE_NOTE(550 , 40 )},
+    {MAKE_NOTE(660 , 400), MAKE_NOTE(440 , 800)},
+    {MAKE_NOTE(1200, 100), MAKE_NOTE(1200, 100), MAKE_NOTE(1200, 100)},
+    {MAKE_NOTE(1200, 500), MAKE_NOTE(1800, 500), MAKE_NOTE(2400, 500)},
+	
+	/// LvUP!
+	{MAKE_NOTE(F__6, NOTE16MS), MAKE_NOTE(F__6, NOTE16MS), MAKE_NOTE(F__6, NOTE16MS),
+	 MAKE_NOTE(F__6, NOTE16MS), MAKE_NOTE(REST, NOTE16MS),
+	 MAKE_NOTE(DS_6, NOTE16MS), MAKE_NOTE(REST, NOTE16MS), MAKE_NOTE(G__6, NOTE16MS), MAKE_NOTE(REST, NOTE16MS),
+	 MAKE_NOTE(F__6, NOTE4MS),},
+
+	/// FF.
+	{MAKE_NOTE(B__6, NOTE16PMS), MAKE_NOTE(G__6, NOTE16PMS ), MAKE_NOTE(A__6, NOTE16PMS ),
+	 MAKE_NOTE(B__6, NOTE32MS), MAKE_NOTE(REST, NOTE32MS), MAKE_NOTE(A__6, NOTE32MS), MAKE_NOTE(B__6, NOTE8MS)},
+	
+	/// doremi.
+	{MAKE_NOTE(C__6, NOTE4MS ), MAKE_NOTE(C__6, NOTE8MS ), MAKE_NOTE(D__6, NOTE8MS ),
+	 MAKE_NOTE(E__6, NOTE4MS ), MAKE_NOTE(E__6, NOTE8MS ), MAKE_NOTE(C__6, NOTE8MS ),
+	 MAKE_NOTE(E__6, NOTE4MS ), MAKE_NOTE(C__6, NOTE4MS ), MAKE_NOTE(E__6, NOTE2MS ),},
+
+	/// Fuuga
+	{MAKE_NOTE(D__5, NOTE16MS), MAKE_NOTE(A__5, NOTE16MS), MAKE_NOTE(F__5, NOTE16MS), MAKE_NOTE(F__5, NOTE32MS),
+	 MAKE_NOTE(E__5, NOTE32MS), MAKE_NOTE(D__5, NOTE32MS), MAKE_NOTE(F__5, NOTE32MS),
+	 MAKE_NOTE(E__5, NOTE32MS), MAKE_NOTE(D__5, NOTE32MS), MAKE_NOTE(CS_5, NOTE32MS),
+	 MAKE_NOTE(E__5, NOTE32MS), MAKE_NOTE(A__4, NOTE16MS),},
+	
+	// Unmei
+	{MAKE_NOTE(A__5, NOTE16MS), MAKE_NOTE(G__5, NOTE16MS), MAKE_NOTE(A__5, NOTE4MS ),
+	 MAKE_NOTE(G__5, NOTE32MS), MAKE_NOTE(F__5, NOTE32MS), MAKE_NOTE(E__5, NOTE32MS), MAKE_NOTE(D__5, NOTE32MS),
+	 MAKE_NOTE(CS_5, NOTE8MS ), MAKE_NOTE(D__5, NOTE8MS ),},
 };
 
 hw_timer_t * timer = NULL;
