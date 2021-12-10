@@ -1,0 +1,22 @@
+#ifndef	_SOUNDNOTE_H_
+#define _SOUNDNOTE_H_
+
+#define	TEMPO		(120)
+#define	NOTE4MS		(60*1000/TEMPO)
+#define	NOTE2MS		(NOTE4MS*2)
+#define	NOTE1MS		(NOTE2MS*2)
+#define	NOTE8MS		(NOTE4MS/2)
+#define	NOTE16MS	(NOTE8MS/2)
+#define	NOTE32MS	(NOTE16MS/2)
+#define	NOTE64MS	(NOTE32MS/2)
+#define	NOTE128MS	(NOTE64MS/2)
+#define	NOTE2PMS	(NOTE2MS+NOTE4MS)
+#define	NOTE4PMS	(NOTE4MS+NOTE8MS)
+#define	NOTE8PMS	(NOTE8MS+NOTE16MS)
+#define	NOTE16PMS	(NOTE16MS+NOTE32MS)
+#define	NOTE32PMS	(NOTE32MS+NOTE64MS)
+
+
+#define	MAKE_NOTE(f,d)	{.freq=(f) , .duration=(d)}
+
+#endif	// _SOUNDNOTE_H_
