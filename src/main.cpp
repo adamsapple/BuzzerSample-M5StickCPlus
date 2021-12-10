@@ -1,4 +1,5 @@
 #include <queue>
+#include <vector>
 
 #include "app.h"
 #include "argument.h"
@@ -17,83 +18,118 @@ struct SoundParam
 
 const int SOUND_TIMER_ID = 1;
 //std::vector<SoundParam> soundQueue(32, {.freq=0, .duration=0});
-std::queue<SoundParam> soundQueue;
+//std::queue<SoundParam> soundQueue;
+/**
+ * @brief サウンドリスト
+ * 
+ */
+std::vector<std::vector<SoundParam>> soundList = {
+    {{.freq=1800, .duration=40 }, {.freq=1200, .duration=60 }, {.freq=1800, .duration=40 }, {.freq=1200, .duration=60} },
+    {{.freq=1200, .duration=30 }, {.freq=900 , .duration=30 }, {.freq=600 , .duration=30 }, {.freq=300 , .duration=30}, {.freq=150 , .duration=30} },
+    {{.freq=750 , .duration=30 }, {.freq=900 , .duration=30 }, {.freq=1200, .duration=30 }, {.freq=1800, .duration=30} },
+    {{.freq=660 , .duration=60 }, {.freq=550 , .duration=40 }},
+    {{.freq=660 , .duration=400}, {.freq=440 , .duration=800}},
+    {{.freq=1200, .duration=100}, {.freq=1200, .duration=100}, {.freq=1200, .duration=100}},
+    {{.freq=1200, .duration=500}, {.freq=1800, .duration=500}, {.freq=2400, .duration=500}}
+};
 
 hw_timer_t * timer = NULL;
 hw_timer_t* soundTimer     = nullptr;
 portMUX_TYPE soundTimerMux = portMUX_INITIALIZER_UNLOCKED;
 
+int id;
+int soundId;
+int soundSeqId;
+bool isPlayng;
+
+void initSound();
+void playSound(int);
+void nextSeqSound();
+void stopSound();
 void IRAM_ATTR onSoundInerrupt();
-void IRAM_ATTR onTimer()
+
+/**
+ * @brief 
+ * 
+ */
+void initSound(int timerId)
 {
-    digitalWrite(LED_PIN, !digitalRead(LED_PIN));
-}
+    //ASSERT(timerId>=0 && timerId<=3, "ERROR !!! invalid timer id.\n");
 
-
-
-void popSound()
-{
-    if(soundQueue.empty())
-    {
-        return;
-    }
-
-    SoundParam param;
-    
-    portENTER_CRITICAL_ISR(&soundTimerMux);
-    {
-        param = soundQueue.front();
-        soundQueue.pop();
-    }
-    portEXIT_CRITICAL_ISR(&soundTimerMux);
-
-    if(param.freq == 0)
-    {
-        M5.Beep.mute();
-    }else{
-        M5.Beep.tone(param.freq);
-    }
-
-    soundTimer = timerBegin(1, 80, true);
+    M5.Beep.setVolume(10);
+    soundTimer = timerBegin(timerId, 80, true);
     timerAttachInterrupt(soundTimer, &onSoundInerrupt, true);
-    timerAlarmWrite(soundTimer, param.duration * 1000, false);
-    
-    timerAlarmEnable(soundTimer);
-}
 
-void stopSound()
-{
-    M5.Beep.mute();
-
-    portENTER_CRITICAL_ISR(&soundTimerMux);
-    {
-        while(!soundQueue.empty())
-        {
-            soundQueue.pop();
-        }
-    }
-    portEXIT_CRITICAL_ISR(&soundTimerMux);
+    isPlayng = false;
 }
 
 /**
  * @brief 
  * 
  */
-void playSound()
+void stopSound()
 {
-    if(soundQueue.empty())
+    timerAlarmDisable(soundTimer);
+    M5.Beep.mute();
+    isPlayng = false;
+}
+
+/**
+ * @brief 
+ * 
+ */
+void nextSeqSound()
+{
+    if(soundSeqId + 1 == soundList[soundId].size())
     {
+        stopSound();
         return;
     }
-
-    SoundParam param;
     
     portENTER_CRITICAL_ISR(&soundTimerMux);
     {
-        param = soundQueue.front();
-        soundQueue.pop();
+        soundSeqId++;
     }
     portEXIT_CRITICAL_ISR(&soundTimerMux);
+
+    auto param = soundList[soundId][soundSeqId];
+    
+    // Serial.printf("nextSeq[%d][%d]\n", soundId, soundSeqId);
+
+    if(param.freq == 0)
+    {
+        M5.Beep.mute();
+    }else{
+        M5.Beep.tone(param.freq);
+    }
+    
+    timerWrite(soundTimer, 0);      // 経過値を0に
+    timerAlarmWrite(soundTimer, param.duration * 1000, false);
+    timerAlarmEnable(soundTimer);
+}
+
+/**
+ * @brief 
+ * 
+ */
+void playSound(const int _soundId)
+{
+    if(_soundId >= soundList.size())
+    {
+        stopSound();
+        return;
+    }
+
+    portENTER_CRITICAL_ISR(&soundTimerMux);
+    {
+        soundId    = _soundId;
+        soundSeqId = 0;
+    }
+    portEXIT_CRITICAL_ISR(&soundTimerMux);
+
+    auto param = soundList[soundId][soundSeqId];
+
+    // Serial.printf("play[%d][%d]\n", soundId, soundSeqId);
 
     if(param.freq == 0)
     {
@@ -102,10 +138,12 @@ void playSound()
         M5.Beep.tone(param.freq);
     }
 
+    isPlayng = true;
     timerWrite(soundTimer, 0);      // 経過値を0に
     timerAlarmWrite(soundTimer, param.duration * 1000, false);  // 発火設定
     timerAlarmEnable(soundTimer);   // Timer開始
 }
+
 
 /**
  * @brief 
@@ -113,12 +151,12 @@ void playSound()
  */
 void IRAM_ATTR onSoundInerrupt()
 {
-    if(soundQueue.empty())
-    {
-        M5.Beep.mute();
-    }else{
-        playSound();
-    }
+    nextSeqSound();
+}
+
+void IRAM_ATTR onTimer()
+{
+    digitalWrite(LED_PIN, !digitalRead(LED_PIN));
 }
 
 AppArgument arg;
@@ -139,8 +177,6 @@ void SensorFunction(bool isEv)
         return;
     }
 }
-
-
 
 /**
  * @brief 描画
@@ -181,19 +217,6 @@ void DrawFunction(bool isEv)
     }
 
     arg.prev_state = arg.state;
-}
-
-/**
- * @brief 
- * 
- */
-void initSound(int timerId)
-{
-    //ASSERT(timerId>=0 && timerId<=3, "ERROR !!! invalid timer id.\n");
-
-    M5.Beep.setVolume(10);
-    soundTimer = timerBegin(timerId, 80, true);
-    timerAttachInterrupt(soundTimer, &onSoundInerrupt, true);
 }
 
 /**
@@ -269,41 +292,13 @@ void loop()
             // delay(60);
             // M5.Beep.mute();
 
-            stopSound();
-            // soundQueue.push({.freq=3300, .duration=40});
-            // soundQueue.push({.freq=2600, .duration=60});
-            // soundQueue.push({.freq=3300, .duration=40});
-            // soundQueue.push({.freq=2600, .duration=60});
-            // soundQueue.push({.freq=3300, .duration=40});
-            soundQueue.push({.freq=1800, .duration=40});
-            soundQueue.push({.freq=1200, .duration=60});
-            soundQueue.push({.freq=1800, .duration=40});
-            soundQueue.push({.freq=1200, .duration=60});
-            playSound();
+            //stopSound();
+            playSound(id++);
+            id = id % soundList.size();
         }else
         if(M5.BtnB.wasPressed())
         {
-            soundQueue.push({.freq=660, .duration=60});
-            soundQueue.push({.freq=550, .duration=40});
-
-            soundQueue.push({.freq=0  , .duration=500});
-            
-            soundQueue.push({.freq=660, .duration=400});
-            soundQueue.push({.freq=440, .duration=800});
-            
-            soundQueue.push({.freq=0  , .duration=500});
-
-            soundQueue.push({.freq=1200, .duration=100});
-            soundQueue.push({.freq=1200, .duration=100});
-            soundQueue.push({.freq=1200, .duration=100});
-
-            soundQueue.push({.freq=0  , .duration=500});
-
-            soundQueue.push({.freq=1200, .duration=500});
-            soundQueue.push({.freq=1800, .duration=500});
-            soundQueue.push({.freq=2400, .duration=500});
-
-            playSound();
+            playSound(id);
         }
     }
 }
